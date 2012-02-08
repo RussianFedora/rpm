@@ -1,0 +1,59 @@
+diff --git a/lib/depends.c b/lib/depends.c
+index ef55adb..1e51d21 100644
+--- a/lib/depends.c
++++ b/lib/depends.c
+@@ -351,9 +351,10 @@ int rpmtsAddEraseElement(rpmts ts, Header h, int dboffset)
+  * @param ts		transaction set
+  * @param dep		dependency
+  * @param adding	dependency is from added package set?
++ * @param conflict	1 if dep is a conflict, 0 otherwise
+  * @return		0 if satisfied, 1 if not satisfied, 2 if error
+  */
+-static int unsatisfiedDepend(rpmts ts, depCache dcache, rpmds dep, int adding)
++static int unsatisfiedDepend(rpmts ts, depCache dcache, rpmds dep, int adding, int conflict)
+ {
+     rpmdbMatchIterator mi;
+     const char * Name = rpmdsN(dep);
+@@ -389,7 +390,23 @@ retry:
+     }
+ 
+     /* Search added packages for the dependency. */
+-    if (rpmalSatisfiesDepend(ts->addedPackages, dep) != NULL) {
++    if (conflict) {
++        rpmte match = rpmalSatisfiesDepend(ts->addedPackages, dep);
++        /*
++         * Handle definitive matches within the added package set.
++         * Self-obsoletes and -conflicts fall through here as we need to
++         * check for possible other matches in the rpmdb.
++         */
++        if (match) {
++            rpmTag dtag = rpmdsTagN(dep);
++            /* Requires match, look no further */
++            if (dtag == RPMTAG_REQUIRENAME)
++                goto exit;
++            /* Conflicts/obsoletes match on another package, look no further */
++            if (rpmteDS(match, dtag) != dep)
++                goto exit;
++        }
++    } else if (rpmalSatisfiesDepend(ts->addedPackages, dep) != NULL) {
+ 	goto exit;
+     }
+ 
+@@ -498,7 +515,7 @@ static int checkPackageDeps(rpmts ts, depCache dcache, const char * pkgNEVRA,
+ 	if (tscolor && dscolor && !(tscolor & dscolor))
+ 	    continue;
+ 
+-	rc = unsatisfiedDepend(ts, dcache, requires, adding);
++	rc = unsatisfiedDepend(ts, dcache, requires, adding, 0);
+ 
+ 	switch (rc) {
+ 	case 0:		/* requirements are satisfied. */
+@@ -529,7 +546,7 @@ static int checkPackageDeps(rpmts ts, depCache dcache, const char * pkgNEVRA,
+ 	if (tscolor && dscolor && !(tscolor & dscolor))
+ 	    continue;
+ 
+-	rc = unsatisfiedDepend(ts, dcache, conflicts, adding);
++	rc = unsatisfiedDepend(ts, dcache, conflicts, adding, 1);
+ 
+ 	/* 1 == unsatisfied, 0 == satsisfied */
+ 	switch (rc) {

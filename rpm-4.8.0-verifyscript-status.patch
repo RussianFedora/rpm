@@ -1,0 +1,43 @@
+diff -up rpm-4.8.0/lib/psm.c.verifyscript-status rpm-4.8.0/lib/psm.c
+--- rpm-4.8.0/lib/psm.c.verifyscript-status	2009-12-07 16:36:49.000000000 +0200
++++ rpm-4.8.0/lib/psm.c	2011-03-04 08:42:53.000000000 +0200
+@@ -498,7 +498,7 @@ static rpmRC runLuaScript(rpmpsm psm, He
+ 
+     if (rpmluaRunScript(lua, script, sname) == 0) {
+ 	rc = RPMRC_OK;
+-    } else if ((stag != RPMTAG_PREIN && stag != RPMTAG_PREUN)) {
++    } else if ((stag != RPMTAG_PREIN && stag != RPMTAG_PREUN && stag != RPMTAG_VERIFYSCRIPT)) {
+ 	warn_only = 1;
+     }
+ 
+@@ -754,7 +754,7 @@ static rpmRC runScript(rpmpsm psm, Heade
+                    sname, WTERMSIG(psm->sq.status));
+ 	} else {
+ 	    /* filter out "regular" error exits from non-pre scriptlets */
+-	    if ((stag != RPMTAG_PREIN && stag != RPMTAG_PREUN)) {
++	    if ((stag != RPMTAG_PREIN && stag != RPMTAG_PREUN && stag != RPMTAG_VERIFYSCRIPT)) {
+ 		warn_only = 1;
+ 	    }
+ 	    rpmlog(warn_only ? RPMLOG_WARNING : RPMLOG_ERR, 
+diff -up rpm-4.8.0/lib/verify.c.verifyscript-status rpm-4.8.0/lib/verify.c
+--- rpm-4.8.0/lib/verify.c.verifyscript-status	2011-03-04 08:42:53.000000000 +0200
++++ rpm-4.8.0/lib/verify.c	2011-03-04 08:44:02.000000000 +0200
+@@ -280,8 +280,7 @@ static int rpmVerifyScript(QVA_t qva, rp
+ 
+     /* create psm to run the script */
+     psm = rpmpsmNew(ts, te);
+-    rpmpsmScriptStage(psm, RPMTAG_VERIFYSCRIPT, RPMTAG_VERIFYSCRIPTPROG);
+-    rc = rpmpsmStage(psm, PSM_SCRIPT);
++    rc = rpmpsmScriptStage(psm, RPMTAG_VERIFYSCRIPT, RPMTAG_VERIFYSCRIPTPROG);
+     psm = rpmpsmFree(psm);
+ 
+     if (scriptFd != NULL)
+@@ -291,7 +290,7 @@ static int rpmVerifyScript(QVA_t qva, rp
+     rpmteClose(te, ts, 0);
+     rpmtsEmpty(ts);
+ 
+-    return rc;
++    return (rc != RPMRC_OK);
+ }
+ 
+ /**

@@ -1,0 +1,70 @@
+From 64e7f2aeb4ce01fccacde021fb22c85083284efb Mon Sep 17 00:00:00 2001
+From: Michael Schroeder <mls@suse.de>
+Date: Mon, 12 Apr 2010 12:07:01 +0200
+Subject: [PATCH] Seems like a change was made to make %attr(-) go back to the
+ defattr setting. Unfortunatelly this broke %defattr(-).
+
+---
+ build/files.c |   36 ++++++++++++++++++++++++++++--------
+ 1 files changed, 28 insertions(+), 8 deletions(-)
+
+diff --git a/build/files.c b/build/files.c
+index 3dfaaf6..2309ab6 100644
+--- a/build/files.c
++++ b/build/files.c
+@@ -559,8 +559,13 @@ static rpmRC parseForAttr(const char * buf, FileList fl)
+ 	}
+ 	ar->ar_fmode = ui;
+     } else {
+-	ar->ar_fmodestr = fl->def_ar.ar_fmodestr;
+-	ar->ar_fmode = fl->def_ar.ar_fmode;
++	if (ret_ar == &(fl->def_ar)) {
++	    ar->ar_fmodestr = NULL;
++	    ar->ar_fmode = 0;
++	} else {
++	    ar->ar_fmodestr = fl->def_ar.ar_fmodestr;
++	    ar->ar_fmode = fl->def_ar.ar_fmode;
++	}
+     }
+ 
+     if (ar->ar_dmodestr && !isAttrDefault(ar->ar_dmodestr)) {
+@@ -572,15 +577,30 @@ static rpmRC parseForAttr(const char * buf, FileList fl)
+ 	}
+ 	ar->ar_dmode = ui;
+     } else {
+-	ar->ar_dmodestr = fl->def_ar.ar_dmodestr;
+-	ar->ar_dmode = fl->def_ar.ar_dmode;
++	if (ret_ar == &(fl->def_ar)) {
++	    ar->ar_dmodestr = NULL;
++	    ar->ar_dmode = 0;
++	} else {
++	    ar->ar_dmodestr = fl->def_ar.ar_dmodestr;
++	    ar->ar_dmode = fl->def_ar.ar_dmode;
++	}
+     }
+ 
+-    if (!(ar->ar_user && !isAttrDefault(ar->ar_user)))
+-	ar->ar_user = fl->def_ar.ar_user;
++    if (!(ar->ar_user && !isAttrDefault(ar->ar_user))) {
++	if (ret_ar == &(fl->def_ar)) {
++	    ar->ar_user = NULL;
++	} else {
++	    ar->ar_user = fl->def_ar.ar_user;
++	}
++    }
+ 
+-    if (!(ar->ar_group && !isAttrDefault(ar->ar_group)))
+-	ar->ar_group = fl->def_ar.ar_group;
++    if (!(ar->ar_group && !isAttrDefault(ar->ar_group))) {
++	if (ret_ar == &(fl->def_ar)) {
++	    ar->ar_group = NULL;
++	} else {
++	    ar->ar_group = fl->def_ar.ar_group;
++	}
++    }
+ 
+     dupAttrRec(ar, ret_ar);
+ 
+-- 
+1.7.4.4
+

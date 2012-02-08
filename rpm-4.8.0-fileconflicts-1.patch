@@ -1,0 +1,29 @@
+From 7bbc9b073d9204f6ffb8a1091c189b80029d27a9 Mon Sep 17 00:00:00 2001
+From: Panu Matilainen <pmatilai@redhat.com>
+Date: Thu, 26 May 2011 11:40:55 +0300
+Subject: [PATCH] Both files must be colored for multilib conflict resolution
+ (RhBug:705115) - File conflicts should only be resolved to
+ preferred color when   both files are colored. Prior to
+ this we would happily overwrite   scripts with a clearly
+ conflicting ELF binary.
+
+---
+ lib/transaction.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/lib/transaction.c b/lib/transaction.c
+index 6797430..1d20100 100644
+--- a/lib/transaction.c
++++ b/lib/transaction.c
+@@ -344,7 +344,7 @@ static void handleInstInstalledFile(const rpmts ts, rpmte p, rpmfi fi,
+ 
+ 	rConflicts = !(beingRemoved || (rpmtsFilterFlags(ts) & RPMPROB_FILTER_REPLACEOLDFILES));
+ 	/* Resolve file conflicts to prefer Elf64 (if not forced). */
+-	if (tscolor != 0 && FColor != 0 && FColor != oFColor) {
++	if (tscolor != 0 && FColor != 0 && oFColor != 0 && FColor != oFColor) {
+ 	    if (oFColor & prefcolor) {
+ 		rpmfsSetAction(fs, fx, FA_SKIPCOLOR);
+ 		rConflicts = 0;
+-- 
+1.7.4.4
+

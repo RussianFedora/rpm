@@ -1,0 +1,14 @@
+--- rpm-4.8.0/lib/rpmchecksig.c.orig	2011-08-14 18:01:44.543660008 +0200
++++ rpm-4.8.0/lib/rpmchecksig.c	2011-08-14 18:07:07.198765842 +0200
+@@ -333,6 +333,11 @@
+ 		       rpm);
+ 		    /* Identical signature is not an error */
+ 		    res = 0;
++
++                    /* Clean up intermediate target */
++                    xx = unlink(sigtarget);
++                    sigtarget = _free(sigtarget);
++                    continue;
+ 		}
+ 		goto exit;
+ 	    }

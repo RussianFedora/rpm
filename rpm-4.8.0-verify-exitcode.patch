@@ -1,0 +1,22 @@
+commit 04ad4b1155ec4b082fbac425a575a0ba05337ab1
+Author: Panu Matilainen <pmatilai@redhat.com>
+Date:   Thu Jan 21 14:14:28 2010 +0200
+
+    Really fix verification error code to not depend on verbosity (RhBug:557101)
+    - earlier fix from commit 6649c23cac5823d0c7415df5cfd66e5aac5eebd2 was
+      broken as it could reset return code to zero after detecting errors
+      earlier
+
+diff --git a/lib/verify.c b/lib/verify.c
+index 44ab314..1068cfe 100644
+--- a/lib/verify.c
++++ b/lib/verify.c
+@@ -353,7 +353,7 @@ static int verifyHeader(QVA_t qva, const rpmts ts, Header h)
+ 	    static const char *const aok = ".";
+ 	    static const char *const unknown = "?";
+ 
+-	    ec = (verifyResult != 0);
++	    if (verifyResult) ec = 1;
+ 
+ #define	_verify(_RPMVERIFY_F, _C)	\
+ 	((verifyResult & _RPMVERIFY_F) ? _C : aok)

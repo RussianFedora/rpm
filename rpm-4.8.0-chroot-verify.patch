@@ -1,0 +1,42 @@
+
+    Fix return from chroot() on verify (RhBug:590588)
+    - a couple of important steps in chroot() in and out sequence missing,
+      causing "No such file or directory" whining on return from chroot()
+      unless cwd happened to be /
+    - backported from commit 2b7884ce2914c48514023dbe61dc7a126964f438
+
+diff --git a/lib/verify.c b/lib/verify.c
+index ea81912..22d2012 100644
+--- a/lib/verify.c
++++ b/lib/verify.c
+@@ -466,6 +466,7 @@ int rpmcliVerify(rpmts ts, QVA_t qva, char * const * argv)
+ {
+     rpmVSFlags vsflags, ovsflags;
+     int ec = 0, xx;
++    int dirfd = -1;
+     const char * rootDir = rpmtsRootDir(ts);
+ 
+     /* 
+@@ -475,7 +476,8 @@ int rpmcliVerify(rpmts ts, QVA_t qva, char * const * argv)
+     rpmtsOpenDB(ts, O_RDONLY);
+     rpmdbOpenAll(rpmtsGetRdb(ts));
+     if (rootDir && !rstreq(rootDir, "/")) {
+-	if (chroot(rootDir) == -1) {
++	dirfd = open(".", O_RDONLY);
++	if (dirfd == -1 || chdir("/") == -1 || chroot(rootDir) == -1) {
+ 	    rpmlog(RPMLOG_ERR, _("Unable to change root directory: %m\n"));
+ 	    ec = 1;
+ 	    goto exit;
+@@ -509,10 +511,12 @@ int rpmcliVerify(rpmts ts, QVA_t qva, char * const * argv)
+     if (rpmtsChrootDone(ts)) {
+ 	/* only done if previous chroot succeeded, assume success */
+ 	xx = chroot(".");
++	xx = fchdir(dirfd);
+ 	rpmtsSetChrootDone(ts, 0);
+     }
+ 
+ exit:
++    if (dirfd >= 0) close(dirfd);
+ 
+     return ec;
+ }

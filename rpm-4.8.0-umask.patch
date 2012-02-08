@@ -1,0 +1,65 @@
+diff --git a/lib/psm.c b/lib/psm.c
+index 48b4d34..cc9e999 100644
+--- a/lib/psm.c
++++ b/lib/psm.c
+@@ -458,6 +458,7 @@ static rpmRC runLuaScript(rpmpsm psm, Header h, rpmTag stag, ARGV_t argv,
+     int xx;
+     rpmlua lua = NULL; /* Global state. */
+     rpmluav var;
++    mode_t oldmask;
+ 
+     rasprintf(&sname, "%s(%s)", tag2sln(stag), rpmteNEVRA(psm->te));
+ 
+@@ -496,11 +497,16 @@ static rpmRC runLuaScript(rpmpsm psm, Header h, rpmTag stag, ARGV_t argv,
+     var = rpmluavFree(var);
+     rpmluaPop(lua);
+ 
++    /* Lua scripts can change our umask, save and restore */
++    oldmask = umask(0);
++    umask(oldmask);
++
+     if (rpmluaRunScript(lua, script, sname) == 0) {
+ 	rc = RPMRC_OK;
+     } else if ((stag != RPMTAG_PREIN && stag != RPMTAG_PREUN && stag != RPMTAG_VERIFYSCRIPT)) {
+ 	warn_only = 1;
+     }
++    umask(oldmask);
+ 
+     rpmluaDelVar(lua, "arg");
+ 
+diff --git a/lib/rpmrc.c b/lib/rpmrc.c
+index 0818deb..50a2d5b 100644
+--- a/lib/rpmrc.c
++++ b/lib/rpmrc.c
+@@ -1600,10 +1600,6 @@ exit:
+ 
+ int rpmReadConfigFiles(const char * file, const char * target)
+ {
+-    mode_t mode = 0022;
+-    /* Reset umask to its default umask(2) value. */
+-    mode = umask(mode);
+-
+     /* Force preloading of dlopen()'ed libraries in case we go chrooting */
+     (void) gethostbyname("localhost");
+     (void) rpmInitCrypto();
+diff --git a/lib/transaction.c b/lib/transaction.c
+index d21040a..c0d0cb2 100644
+--- a/lib/transaction.c
++++ b/lib/transaction.c
+@@ -1450,6 +1450,8 @@ int rpmtsRun(rpmts ts, rpmps okProbs, rpmprobFilterFlags ignoreSet)
+ {
+     int rc = -1; /* assume failure */
+     void * lock = NULL;
++    /* Force default 022 umask during transaction for consistent results */
++    mode_t oldmask = umask(022);
+ 
+     /* XXX programmer error segfault avoidance. */
+     if (rpmtsNElements(ts) <= 0) {
+@@ -1506,6 +1508,7 @@ int rpmtsRun(rpmts ts, rpmps okProbs, rpmprobFilterFlags ignoreSet)
+     (void) rpmtsFinish(ts);
+ 
+ exit:
++    (void) umask(oldmask);
+     rpmtsFreeLock(lock);
+     return rc;
+ }

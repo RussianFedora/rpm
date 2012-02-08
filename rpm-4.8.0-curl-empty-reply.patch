@@ -1,0 +1,22 @@
+commit 15c0c4e7a1291915a4ea4115e94d2b747d5091ac
+Author: Panu Matilainen <pmatilai@redhat.com>
+Date:   Thu Jun 3 16:22:09 2010 +0300
+
+    Fix "empty reply from server" curl-syndrome with url retrieval (RhBug:598988)
+    - We were adding a trailing newline to urlhelper command line passed
+      to execvp(), with the newline ending up in the URL passed to curl.
+      Many servers dont seem to mind the extra newline, but some do. Oh well...
+
+diff --git a/rpmio/url.c b/rpmio/url.c
+index 1db20d0..e4b15d2 100644
+--- a/rpmio/url.c
++++ b/rpmio/url.c
+@@ -110,7 +110,7 @@ int urlGetFile(const char * url, const char * dest)
+ 
+     /* XXX TODO: sanity checks like target == dest... */
+ 
+-    rasprintf(&cmd, "%s %s %s\n", urlhelper, target, url);
++    rasprintf(&cmd, "%s %s %s", urlhelper, target, url);
+     urlhelper = _free(urlhelper);
+ 
+     if ((pid = fork()) == 0) {

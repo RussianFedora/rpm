@@ -1,0 +1,39 @@
+commit cadab3afa55388f3082a3468d582896caabfd55c
+Author: Panu Matilainen <pmatilai@redhat.com>
+Date:   Tue Jun 1 11:58:42 2010 +0300
+
+    Permit DOS line-endings in PGP armors (RhBug:532992)
+    - RFC-4880 doesn't requires unix-style line-endings, we shouldn't either.
+      This is probably still oversly strict as RFC-4880 appears to permit
+      any whitespace to follow armor headers but ... shrug.
+
+diff --git a/rpmio/rpmpgp.c b/rpmio/rpmpgp.c
+index 0863a05..39282bb 100644
+--- a/rpmio/rpmpgp.c
++++ b/rpmio/rpmpgp.c
+@@ -1471,10 +1471,13 @@ static pgpArmor decodePkts(uint8_t *b, uint8_t **pkt, size_t *pktlen)
+ 	    }
+ 	    if (rc != PGPARMOR_PUBKEY)	/* XXX ASCII Pubkeys only, please. */
+ 		continue;
+-	    armortype = t;
+ 
+-	    t = te - (sizeof("-----\n")-1);
+-	    if (!TOKEQ(t, "-----\n"))
++	    armortype = pgpValStr(pgpArmorTbl, rc);
++	    t += strlen(armortype);
++	    if (!TOKEQ(t, "-----"))
++		continue;
++	    t += sizeof("-----")-1;
++	    if (*t != '\n' && *t != '\r')
+ 		continue;
+ 	    *t = '\0';
+ 	    pstate++;
+@@ -1484,7 +1487,7 @@ static pgpArmor decodePkts(uint8_t *b, uint8_t **pkt, size_t *pktlen)
+ 	    rc = pgpValTok(pgpArmorKeyTbl, t, te);
+ 	    if (rc >= 0)
+ 		continue;
+-	    if (*t != '\n') {
++	    if (*t != '\n' && *t != '\r') {
+ 		pstate = 0;
+ 		continue;
+ 	    }

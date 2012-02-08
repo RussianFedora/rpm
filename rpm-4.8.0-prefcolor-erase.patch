@@ -1,0 +1,47 @@
+commit 31fc87d29244ca7cb6e6335ff2ff1bdb6e0226ec
+Author: Panu Matilainen <pmatilai@redhat.com>
+Date:   Tue Mar 8 13:28:32 2011 +0200
+
+    Preferred color pkgs should be erased last
+    - On install we need to queue preferred colored pkgs before others
+      to account for the way colored files get laid on disk. On erase,
+      we need to revert this for the same reason. Most of the time
+      dependencies take care of this, but the queue placement matters in
+      cases such as RhBug:680261 where the order is not dependency-driven.
+    - Backported from commit 4a16d55f1f689ab06e8dd45c50b86e478a732367
+
+diff --git a/lib/order.c b/lib/order.c
+index 8b4725d..5026916 100644
+--- a/lib/order.c
++++ b/lib/order.c
+@@ -213,6 +213,8 @@ static void addQ(rpmte p,
+ 		rpm_color_t prefcolor)
+ {
+     rpmte q, qprev;
++    rpm_color_t pcolor = rpmteColor(p);
++    int tailcond;
+ 
+     /* Mark the package as queued. */
+     rpmteTSI(p)->tsi_reqx = 1;
+@@ -223,13 +225,18 @@ static void addQ(rpmte p,
+ 	return;
+     }
+ 
+-    /* Find location in queue using metric tsi_qcnt. */
++    if (rpmteType(p) == TR_ADDED)
++	tailcond = (pcolor && pcolor != prefcolor);
++    else
++	tailcond = (pcolor && pcolor == prefcolor);
++
++    /* Find location in queue using metric tsi_qcnt and color. */
+     for (qprev = NULL, q = (*qp);
+ 	 q != NULL;
+ 	 qprev = q, q = rpmteTSI(q)->tsi_suc)
+     {
+-	/* XXX Insure preferred color first. */
+-	if (rpmteColor(p) != prefcolor && rpmteColor(p) != rpmteColor(q))
++	/* Place preferred color towards queue head on install, tail on erase */
++	if (tailcond && (pcolor != rpmteColor(q)))
+ 	    continue;
+ 
+ 	if (rpmteTSI(q)->tsi_qcnt <= rpmteTSI(p)->tsi_qcnt)

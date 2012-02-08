@@ -1,0 +1,14 @@
+--- /usr/lib/rpm/rpm2cpio.sh	2010-07-09 11:45:59.000000000 +0200
++++ ./scripts/rpm2cpio.sh	2011-02-01 16:19:13.351447581 +0100
+@@ -28,9 +28,11 @@
+ 
+ gz="`echo . | awk '{ printf("%c%c", 0x1f, 0x8b); }'`"
+ lzma="`echo . | awk '{ printf("%cLZ", 0xff); }'`"
++xz="`echo . | awk '{ printf("%c7z", 0xfd); }'`"
+ case "$comp" in
+     BZh)      dd if="$pkg" ibs=$o skip=1 2>/dev/null | bunzip2 ;;
+     "$gz"*)   dd if="$pkg" ibs=$o skip=1 2>/dev/null | gunzip ;;
++    "$xz"*)   dd if="$pkg" ibs=$o skip=1 2>/dev/null | xzcat ;;
+     "$lzma"*) dd if="$pkg" ibs=$o skip=1 2>/dev/null | unlzma ;;
+     *)        echo "Unrecognized rpm file: $pkg"; return 1 ;;
+ esac

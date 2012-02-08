@@ -1,0 +1,53 @@
+commit 05ea39753dc5b99088fbf2774d72d33fe773eec0
+Author: Panu Matilainen <pmatilai@redhat.com>
+Date:   Tue Jun 29 10:47:18 2010 +0300
+
+    Add some sanity checks for generated signatures (related to RhBug:608599)
+    - GPG supports all sorts of algorithms NSS doesn't, do some basic tests
+      to verify the generated signature is something we can actually use.
+    (cherry picked from commit 0e143cfe9f11abc42733d2265dc6d61cb716e5a4)
+
+diff --git a/lib/signature.c b/lib/signature.c
+index 7d50db7..b21d5cc 100644
+--- a/lib/signature.c
++++ b/lib/signature.c
+@@ -314,6 +314,29 @@ Header rpmFreeSignature(Header sigh)
+     return headerFree(sigh);
+ }
+ 
++/*
++ * NSS doesn't support everything GPG does. Basic tests to see if the 
++ * generated signature is something we can use.
++ */
++static int validatePGPSig(pgpDigParams sigp)
++{
++    pgpHashAlgo pa = sigp->pubkey_algo;
++    /* TODO: query from the implementation instead of hardwiring here */
++    if (pa != PGPPUBKEYALGO_DSA && pa != PGPPUBKEYALGO_RSA) {
++	rpmlog(RPMLOG_ERR, _("Unsupported PGP pubkey algorithm %d\n"),
++		sigp->pubkey_algo);
++	return 1;
++    }
++
++    if (rpmDigestLength(sigp->hash_algo) == 0) {
++	rpmlog(RPMLOG_ERR, _("Unsupported PGP hash algorithm %d\n"),
++	       sigp->hash_algo);
++	return 1;
++    }
++
++    return 0;
++}
++
+ /**
+  * Generate GPG signature(s) for a header+payload file.
+  * @param file		header+payload file name
+@@ -443,8 +466,8 @@ static int makeGPGSignature(const char * file, rpmSigTag * sigTagp,
+ 	break;
+     }
+ 
++    rc = validatePGPSig(sigp);
+     dig = pgpFreeDig(dig);
+-    rc = 0;
+ 
+ exit:
+     (void) unlink(sigfile);

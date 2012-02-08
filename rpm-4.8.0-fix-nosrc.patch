@@ -1,0 +1,41 @@
+diff --git a/build/files.c b/build/files.c
+index 2309ab6..1f26f5f 100644
+--- a/build/files.c
++++ b/build/files.c
+@@ -2068,7 +2068,7 @@ int processSourceFiles(rpmSpec spec)
+ 	if (srcPtr->flags & RPMBUILD_ISPATCH) {
+ 	    headerPutString(spec->sourceHeader, RPMTAG_PATCH, srcPtr->source);
+ 	    if (srcPtr->flags & RPMBUILD_ISNO) {
+-		headerPutUint32(spec->sourceHeader, RPMTAG_NOSOURCE,
++		headerPutUint32(spec->sourceHeader, RPMTAG_NOPATCH,
+ 				&srcPtr->num, 1);
+ 	    }
+ 	}
+diff --git a/lib/rpmtag.h b/lib/rpmtag.h
+index 44aa3e3..ca136b5 100644
+--- a/lib/rpmtag.h
++++ b/lib/rpmtag.h
+@@ -121,8 +121,8 @@ typedef enum rpmTag_e {
+     RPMTAG_REQUIRENAME		= 1049,	/* s[] */
+ #define	RPMTAG_REQUIRES RPMTAG_REQUIRENAME	/* s[] */
+     RPMTAG_REQUIREVERSION	= 1050,	/* s[] */
+-    RPMTAG_NOSOURCE		= 1051, /* i internal */
+-    RPMTAG_NOPATCH		= 1052, /* i internal */
++    RPMTAG_NOSOURCE		= 1051, /* i */
++    RPMTAG_NOPATCH		= 1052, /* i */
+     RPMTAG_CONFLICTFLAGS	= 1053, /* i[] */
+     RPMTAG_CONFLICTNAME		= 1054,	/* s[] */
+ #define	RPMTAG_CONFLICTS RPMTAG_CONFLICTNAME	/* s[] */
+diff --git a/tests/rpmgeneral.at b/tests/rpmgeneral.at
+index 73644c2..70ad8cb 100644
+--- a/tests/rpmgeneral.at
++++ b/tests/rpmgeneral.at
+@@ -152,6 +152,8 @@ N
+ NAME
+ NEVR
+ NEVRA
++NOPATCH
++NOSOURCE
+ NVR
+ NVRA
+ O

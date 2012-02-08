@@ -1,0 +1,55 @@
+commit 8add873185243589e424816c1f0af8c56eb1451d
+Author: Panu Matilainen <pmatilai@redhat.com>
+Date:   Fri Sep 30 15:28:00 2011 +0300
+
+    Sanity check OpenPGP packet lengths in pgpPrtSubType()
+    
+    - Sub-packet prefix length + packet length can't very well be larger
+      than the remaining packet length. In addition to sanity checking,
+      return an error code and have callers actually check for it.
+    - Fixes (yet another) segfault on malformed package (RhBug:742499)
+    (cherry picked from commit 30635dd4330a192fa2b6e202a0e2490eba599a93)
+
+diff --git a/rpmio/rpmpgp.c b/rpmio/rpmpgp.c
+index 9e20eb8..cbd44f5 100644
+--- a/rpmio/rpmpgp.c
++++ b/rpmio/rpmpgp.c
+@@ -482,6 +482,9 @@ static int pgpPrtSubType(const uint8_t *h, size_t hlen, pgpSigType sigtype,
+ 
+     while (hlen > 0) {
+ 	i = pgpLen(p, &plen);
++	if (i + plen > hlen)
++	    break;
++
+ 	p += i;
+ 	hlen -= i;
+ 
+@@ -564,7 +567,7 @@ static int pgpPrtSubType(const uint8_t *h, size_t hlen, pgpSigType sigtype,
+ 	p += plen;
+ 	hlen -= plen;
+     }
+-    return 0;
++    return (hlen != 0); /* non-zero hlen is an error */
+ }
+ 
+ static const char * const pgpSigRSA[] = {
+@@ -723,7 +726,8 @@ fprintf(stderr, "   hash[%zu] -- %s\n", plen, pgpHexStr(p, plen));
+ 	    _digp->hashlen = sizeof(*v) + plen;
+ 	    _digp->hash = memcpy(xmalloc(_digp->hashlen), v, _digp->hashlen);
+ 	}
+-	(void) pgpPrtSubType(p, plen, v->sigtype, _digp);
++	if (pgpPrtSubType(p, plen, v->sigtype, _digp))
++	    return 1;
+ 	p += plen;
+ 
+ 	plen = pgpGrab(p,2);
+@@ -734,7 +738,8 @@ fprintf(stderr, "   hash[%zu] -- %s\n", plen, pgpHexStr(p, plen));
+ 
+ if (_debug && _print)
+ fprintf(stderr, " unhash[%zu] -- %s\n", plen, pgpHexStr(p, plen));
+-	(void) pgpPrtSubType(p, plen, v->sigtype, _digp);
++	if (pgpPrtSubType(p, plen, v->sigtype, _digp))
++	    return 1;
+ 	p += plen;
+ 
+ 	plen = pgpGrab(p,2);

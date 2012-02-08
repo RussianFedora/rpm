@@ -1,0 +1,30 @@
+diff --git a/build/rpmfc.c b/build/rpmfc.c
+index ac19e82..8ee2400 100644
+--- a/build/rpmfc.c
++++ b/build/rpmfc.c
+@@ -178,7 +178,8 @@ top:
+ 	    if ((nbw = write(toProg[1], writePtr,
+ 		    (1024<writeBytesLeft) ? 1024 : writeBytesLeft)) < 0) {
+ 	        if (errno != EAGAIN) {
+-		    perror("getOutputFrom()");
++		    rpmlog(RPMLOG_ERR, _("%s: failure writing to %s: %m\n"),
++			   __func__, argv[0]);
+ 	            exit(EXIT_FAILURE);
+ 		}
+ 	        nbw = 0;
+diff --git a/scripts/fontconfig.prov b/scripts/fontconfig.prov
+index 8638680..bfb6ea0 100755
+--- a/scripts/fontconfig.prov
++++ b/scripts/fontconfig.prov
+@@ -12,7 +12,10 @@
+ 
+ fcquery=/usr/bin/fc-query
+ 
+-[ -x $fcquery ] || exit 0
++if [ ! -x $fcquery ]; then
++    cat > /dev/null
++    exit 0
++fi
+ 
+ # filter out anything outside main fontconfig path
+ grep /usr/share/fonts/ |

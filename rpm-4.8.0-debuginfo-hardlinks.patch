@@ -1,0 +1,25 @@
+commit c72fc6adba1acb4fe49e31273c2437703b15afeb
+Author: Roland McGrath <roland@redhat.com>
+Date:   Mon Aug 9 15:27:03 2010 +0300
+
+    Fix find-debuginfo.sh behavior on cross-directory hardlinks (RhBug:618426)
+    - The find-debuginfo.sh script makes hard links of .debug files to
+      correspond to hard links between install binaries.  It can fail to
+      create one of these .debug hard links if it's in a directory that
+      didn't exist at that point in the script run. How this happens
+      depends on things like the order "find" lists files, so it can
+      be hard to reproduce off hand.
+
+diff --git a/scripts/find-debuginfo.sh b/scripts/find-debuginfo.sh
+index 3ada962..e050dc1 100644
+--- a/scripts/find-debuginfo.sh
++++ b/scripts/find-debuginfo.sh
+@@ -191,7 +191,7 @@ while read nlinks inum f; do
+       link=$debugfn
+       get_debugfn "$linked"
+       echo "hard linked $link to $debugfn"
+-      ln -nf "$debugfn" "$link"
++      mkdir -p "$(dirname "$link")" && ln -nf "$debugfn" "$link"
+       continue
+     else
+       eval linked_$inum=\$f

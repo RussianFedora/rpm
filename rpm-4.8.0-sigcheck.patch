@@ -1,0 +1,62 @@
+From c07efb9fec3d8d7216e15609e3acf7d107cbe2ae Mon Sep 17 00:00:00 2001
+From: Panu Matilainen <Panu Matilainen pmatilai@redhat.com>
+Date: Thu, 14 Jul 2011 14:05:32 +0300
+Subject: [PATCH] Sanity check signatures even if we dont have a key
+
+- Fixes a regression originating all the way back from commit
+  c7fc09d585ff3831924f72f61d990aa791f2c3f2 (ie rpm >= 4.8.0)
+  where a package with a bogus signature can slip through undetected
+  if we dont have a key for it.
+- This additional sanity check on the signature prevents is enough
+  to prevent the fuzzed package in RhBug:721225 from crashing us
+  by stopping the bad package at the front door. That we don't have
+  proper tag data validation is another, much wider issue...
+---
+ lib/signature.c |    8 +++-----
+ rpmio/rpmpgp.c  |   11 ++++++++++-
+ 2 files changed, 13 insertions(+), 6 deletions(-)
+
+diff --git a/lib/signature.c b/lib/signature.c
+index 955cb1c..cfb59ec 100644
+--- a/lib/signature.c
++++ b/lib/signature.c
+@@ -480,11 +480,9 @@ verifySignature(rpmKeyring keyring, pgpDig dig, DIGEST_CTX hashctx, int isHdr,
+ 	goto exit;
+     }
+ 
+-    /* Retrieve the matching public key and verify. */
+-    res = rpmKeyringLookup(keyring, dig);
+-    if (res == RPMRC_OK) {
+-	res = pgpVerifySig(dig, hashctx);
+-    }
++    /* Call verify even if we dont have a key for a basic sanity check */
++    (void) rpmKeyringLookup(keyring, dig);
++    res = pgpVerifySig(dig, hashctx);
+ 
+ exit:
+     sigid = pgpIdentItem(sigp);
+diff --git a/rpmio/rpmpgp.c b/rpmio/rpmpgp.c
+index 01e74e4..cf2ebf0 100644
+--- a/rpmio/rpmpgp.c
++++ b/rpmio/rpmpgp.c
+@@ -1396,7 +1396,16 @@ rpmRC pgpVerifySig(pgpDig dig, DIGEST_CTX hashctx)
+     rpmDigestFinal(ctx, (void **)&hash, &hashlen, 0);
+ 
+     /* Compare leading 16 bits of digest for quick check. */
+-    if (hash && memcmp(hash, sigp->signhash16, 2) == 0) {
++    if (hash && memcmp(hash, sigp->signhash16, 2) != 0)
++	goto exit;
++
++    /*
++     * If we have a key, verify the signature for real. Otherwise we've
++     * done all we can, return NOKEY to indicate "looks okay but dunno."
++     */
++    if (dig->keydata == NULL) {
++	res = RPMRC_NOKEY;
++    } else {
+ 	SECItem digest = { .type = siBuffer, .data = hash, .len = hashlen };
+ 	SECItem *sig = dig->sigdata;
+ 
+-- 
+1.7.4.1
+

@@ -1,0 +1,19 @@
+commit ce1d2e87157f4a7ebc4f4d6f26024ac597400367
+Author: Panu Matilainen <pmatilai@redhat.com>
+Date:   Thu Jan 21 13:45:34 2010 +0200
+
+    Fix double-free segfault on url retrieve to read-only media (RhBug:557118)
+
+diff --git a/lib/rpminstall.c b/lib/rpminstall.c
+index 6b3dde7..568e13f 100644
+--- a/lib/rpminstall.c
++++ b/lib/rpminstall.c
+@@ -458,7 +458,7 @@ restart:
+ 	case URL_IS_HTTPS:
+ 	case URL_IS_HTTP:
+ 	case URL_IS_FTP:
+-	{   char *tfn;
++	{   char *tfn = NULL;
+ 	    FD_t tfd;
+ 
+ 	    if (rpmIsVerbose())
