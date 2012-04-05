@@ -1,0 +1,100 @@
+commit 6881d72a032b77248c8a91b31d8b38d00fd41f2e
+Author: Panu Matilainen <pmatilai@redhat.com>
+Date:   Wed Jan 18 10:56:35 2012 +0200
+
+    Differentiate between non-existent and invalid region tag
+    
+    - Non-existent region tag is very different from existing but invalid
+      one - the former is not an error but the latter one is, and needs
+      to be handled as such. Previously an invalid region tag would cause
+      us to treat it like rpm v3 package on entry, skipping all the region
+      sanity checks and then crashing and burning later on when the immutable
+      tag is fetched.
+    - Additionally verify the entire trailer, not just its offset, is
+      within data area
+    - Refer to REGION_TAG_TYPE instead of RPM_BIN_TYPE wrt the expected
+      type of region tag for consistency and clarity, they are the same
+      exact thing though.
+
+diff --git a/lib/package.c b/lib/package.c
+index 90e4f9c..755d034 100644
+--- a/lib/package.c
++++ b/lib/package.c
+@@ -241,16 +241,23 @@ static rpmRC headerVerify(rpmKeyring keyring, rpmVSFlags vsflags,
+     }
+ 
+     /* Is there an immutable header region tag? */
+-    if (!(entry.info.tag == RPMTAG_HEADERIMMUTABLE
+-       && entry.info.type == RPM_BIN_TYPE
+-       && entry.info.count == REGION_TAG_COUNT))
+-    {
++    if (!(entry.info.tag == RPMTAG_HEADERIMMUTABLE)) {
+ 	rc = RPMRC_NOTFOUND;
+ 	goto exit;
+     }
+ 
+-    /* Is the offset within the data area? */
+-    if (entry.info.offset >= dl) {
++    /* Is the region tag sane? */
++    if (!(entry.info.type == REGION_TAG_TYPE &&
++	  entry.info.count == REGION_TAG_COUNT)) {
++	rasprintf(&buf,
++		_("region tag: BAD, tag %d type %d offset %d count %d\n"),
++		entry.info.tag, entry.info.type,
++		entry.info.offset, entry.info.count);
++	goto exit;
++    }
++
++    /* Is the trailer within the data area? */
++    if (entry.info.offset + REGION_TAG_COUNT > dl) {
+ 	rasprintf(&buf, 
+ 		_("region offset: BAD, tag %d type %d offset %d count %d\n"),
+ 		entry.info.tag, entry.info.type,
+@@ -266,7 +273,7 @@ static rpmRC headerVerify(rpmKeyring keyring, rpmVSFlags vsflags,
+     xx = headerVerifyInfo(1, dl, &info, &entry.info, 1);
+     if (xx != -1 ||
+ 	!(entry.info.tag == RPMTAG_HEADERIMMUTABLE
+-       && entry.info.type == RPM_BIN_TYPE
++       && entry.info.type == REGION_TAG_TYPE
+        && entry.info.count == REGION_TAG_COUNT))
+     {
+ 	rasprintf(&buf, 
+diff --git a/lib/signature.c b/lib/signature.c
+index 7d50db7..f24d85b 100644
+--- a/lib/signature.c
++++ b/lib/signature.c
+@@ -171,12 +171,19 @@ rpmRC rpmReadSignature(FD_t fd, Header * sighp, sigType sig_type, char ** msg)
+     }
+ 
+     /* Is there an immutable header region tag? */
+-    if (entry.info.tag == RPMTAG_HEADERSIGNATURES
+-       && entry.info.type == RPM_BIN_TYPE
+-       && entry.info.count == REGION_TAG_COUNT)
+-    {
+-
+-	if (entry.info.offset >= dl) {
++    if (entry.info.tag == RPMTAG_HEADERSIGNATURES) {
++	/* Is the region tag sane? */
++	if (!(entry.info.type == REGION_TAG_TYPE &&
++	      entry.info.count == REGION_TAG_COUNT)) {
++	    rasprintf(&buf,
++		_("region tag: BAD, tag %d type %d offset %d count %d\n"),
++		entry.info.tag, entry.info.type,
++		entry.info.offset, entry.info.count);
++	    goto exit;
++	}
++	
++	/* Is the trailer within the data area? */
++	if (entry.info.offset + REGION_TAG_COUNT > dl) {
+ 	    rasprintf(&buf, 
+ 		_("region offset: BAD, tag %d type %d offset %d count %d\n"),
+ 		entry.info.tag, entry.info.type,
+@@ -198,7 +205,7 @@ rpmRC rpmReadSignature(FD_t fd, Header * sighp, sigType sig_type, char ** msg)
+ 	xx = headerVerifyInfo(1, dl, &info, &entry.info, 1);
+ 	if (xx != -1 ||
+ 	    !((entry.info.tag == RPMTAG_HEADERSIGNATURES || entry.info.tag == RPMTAG_HEADERIMAGE)
+-	   && entry.info.type == RPM_BIN_TYPE
++	   && entry.info.type == REGION_TAG_TYPE
+ 	   && entry.info.count == REGION_TAG_COUNT))
+ 	{
+ 	    rasprintf(&buf,

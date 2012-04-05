@@ -1,0 +1,50 @@
+commit eed7b9c9b14542170f9cb805cfb588b1f8f1a3a2
+Author: Panu Matilainen <pmatilai@redhat.com>
+Date:   Tue Feb 14 11:27:46 2012 +0200
+
+    Validate negated offsets too in headerVerifyInfo()
+    
+    - Undo the ancient broken fix for RhBug:71996 from commit
+      9e06e3b8ca76ae55eaf2c4e37ba9cac729789014: instead of disabling
+      the check, pass in the correct upper range which is entirely
+      different from everything else for the region trailer tag.
+
+diff --git a/lib/header.c b/lib/header.c
+index a64264e..62bebeb 100644
+--- a/lib/header.c
++++ b/lib/header.c
+@@ -171,7 +171,7 @@ int headerVerifyInfo(int il, int dl, const void * pev, void * iv, int negate)
+ 	    return i;
+ 	if (hdrchkAlign(info->type, info->offset))
+ 	    return i;
+-	if (!negate && hdrchkRange(dl, info->offset))
++	if (hdrchkRange(dl, info->offset))
+ 	    return i;
+ 	if (hdrchkData(info->count))
+ 	    return i;
+diff --git a/lib/package.c b/lib/package.c
+index 755d034..432d06f 100644
+--- a/lib/package.c
++++ b/lib/package.c
+@@ -270,7 +270,7 @@ static rpmRC headerVerify(rpmKeyring keyring, rpmVSFlags vsflags,
+     (void) memcpy(&info, regionEnd, REGION_TAG_COUNT);
+     regionEnd += REGION_TAG_COUNT;
+ 
+-    xx = headerVerifyInfo(1, dl, &info, &entry.info, 1);
++    xx = headerVerifyInfo(1, il * sizeof(*pe), &info, &entry.info, 1);
+     if (xx != -1 ||
+ 	!(entry.info.tag == RPMTAG_HEADERIMMUTABLE
+        && entry.info.type == REGION_TAG_TYPE
+diff --git a/lib/signature.c b/lib/signature.c
+index f24d85b..573d73d 100644
+--- a/lib/signature.c
++++ b/lib/signature.c
+@@ -202,7 +202,7 @@ rpmRC rpmReadSignature(FD_t fd, Header * sighp, sigType sig_type, char ** msg)
+ 	}
+ 	dataEnd += REGION_TAG_COUNT;
+ 
+-	xx = headerVerifyInfo(1, dl, &info, &entry.info, 1);
++	xx = headerVerifyInfo(1, il * sizeof(*pe), &info, &entry.info, 1);
+ 	if (xx != -1 ||
+ 	    !((entry.info.tag == RPMTAG_HEADERSIGNATURES || entry.info.tag == RPMTAG_HEADERIMAGE)
+ 	   && entry.info.type == REGION_TAG_TYPE

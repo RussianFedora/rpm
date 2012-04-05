@@ -1,0 +1,44 @@
+commit 74c98b038b24f46bed7e961225d2b11b56a699ae
+Author: Panu Matilainen <pmatilai@redhat.com>
+Date:   Thu Jan 19 11:03:12 2012 +0200
+
+    Fix region length calculation and sanity check against header size
+    
+    - When calculating length of dribbles, we need to take into account the
+      size up to that point, otherwise the alignment can be wrong causing
+      the sizes not to add up.
+    - With the sizes now correctly calculated, verify the sizes match up
+
+diff --git a/lib/header.c b/lib/header.c
+index 2d68854..4ef7564 100644
+--- a/lib/header.c
++++ b/lib/header.c
+@@ -853,13 +853,12 @@ Header headerLoad(void * uh)
+ 	    indexEntry newEntry = entry + ril;
+ 	    int ne = (h->indexUsed - ril);
+ 	    int rid = entry->info.offset+1;
+-	    int rc;
+ 
+ 	    /* Load dribble entries from region. */
+-	    rc = regionSwab(newEntry, ne, 0, pe+ril, dataStart, dataEnd, rid);
+-	    if (rc < 0)
++	    rdlen = regionSwab(newEntry, ne, rdlen, pe+ril,
++				dataStart, dataEnd, rid);
++	    if (rdlen < 0)
+ 		goto errxit;
+-	    rdlen += rc;
+ 
+ 	  { indexEntry firstEntry = newEntry;
+ 	    int save = h->indexUsed;
+@@ -881,6 +880,11 @@ Header headerLoad(void * uh)
+ 	    h->indexUsed += ne;
+ 	  }
+ 	}
++
++	rdlen += REGION_TAG_COUNT;
++
++	if (rdlen != dl)
++	    goto errxit;
+     }
+ 
+     h->flags &= ~HEADERFLAG_SORTED;
