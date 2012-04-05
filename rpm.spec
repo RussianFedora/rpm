@@ -21,7 +21,7 @@
 Summary: The RPM package management system
 Name: rpm
 Version: %{rpmver}
-Release: 19%{?dist}.R
+Release: 19.el6_2.1.R
 Group: System Environment/Base
 Url: http://www.rpm.org/
 Source0: http://rpm.org/releases/rpm-4.8.x/%{name}-%{version}.tar.bz2
@@ -83,6 +83,11 @@ Patch236: rpm-4.8.x-pgpsubtype.patch
 Patch301: rpm-4.6.0-niagara.patch
 Patch302: rpm-4.7.1-geode-i686.patch
 Patch303: rpm-4.8.0-em64t.patch
+
+Patch260: rpm-4.8.x-headerload-region.patch
+Patch261: rpm-4.8.x-pkgread-region.patch
+Patch262: rpm-4.8.x-region-size.patch
+Patch263: rpm-4.8.x-region-trailer.patch
 
 # Temporary Patch to provide support for updates
 Patch400: rpm-4.8.0-rpmlib-filesystem-check.patch
@@ -272,6 +277,11 @@ packages on a system.
 %patch301 -p1 -b .niagara
 %patch302 -p1 -b .geode
 %patch303 -p1 -b .em64t
+
+%patch260 -p1 -b .headerload-region
+%patch261 -p1 -b .pkgread-region
+%patch262 -p1 -b .region-size
+%patch263 -p1 -b .region-trailer
 
 %patch400 -p1 -b .rpmlib-filesystem-check
 
@@ -484,6 +494,9 @@ exit 0
 %doc doc/librpm/html/*
 
 %changelog
+* Thu Apr  5 2012 Arkady L. Shane <ashejn@russianfedora.ru> - 4.8.0-19.el6_2.1.R
+- apply upstream patches
+
 * Wed Feb  8 2012 Arkady L. Shane <ashejn@russianfedora.ru> - 4.8.0-19.R
 - add temporary rpmlib patch to support filesystem transition
   https://fedoraproject.org/wiki/Features/UsrMove
